@@ -1,0 +1,173 @@
+<div class="calendar-container">
+
+  <div class="sidebar-calendar">
+    <div class="mini-calendar-header">
+      <button class="nav-button" (click)="prev()">&laquo;</button>
+      <span>{{ currentDate | date: 'MMM yyyy' }}</span>
+      <button class="nav-button" (click)="next()">&raquo;</button>
+    </div>
+    <div class="mini-calendar-grid">
+      <div class="mini-weekday" *ngFor="let weekday of weekdays">{{ weekday }}</div>
+      <div *ngFor="let day of monthDays"
+        [ngClass]="{'calendar-day': true, 'today': isToday(day), 'selected': isSelected(day)}"
+        (click)="selectDate(day)">
+        <span>{{ day | date: 'd' }}</span>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="main-calendar-content">
+   
+    <div class="view-selector">
+      <button (click)="changeView('day')" [class.active]="currentView === 'day'">Day</button>
+      <button (click)="changeView('week')" [class.active]="currentView === 'week'">Week</button>
+      <button (click)="changeView('month')" [class.active]="currentView === 'month'">Month</button>
+      <button (click)="changeView('year')" [class.active]="currentView === 'year'">Year</button>
+    </div>
+
+    
+    <div *ngIf="currentView === 'month'" class="calendar-header">
+      <button class="nav-button" (click)="prev()">&lt;</button>
+      <span class="month-title">{{ currentDate | date: 'MMMM yyyy' }}</span>
+      <button class="nav-button" (click)="next()">&gt;</button>
+    </div>
+
+ 
+  <div *ngIf="currentView === 'month'" class="calendar-month-view">
+    <div class="calendar-grid">
+      <div class="calendar-weekday" *ngFor="let weekday of weekdays">{{ weekday }}</div>
+      <div class="calendar-day" *ngFor="let day of monthDays"
+        [ngClass]="{'calendar-day': true, 'today': isToday(day), 'selected': isSelected(day)}" (click)="selectDate(day)"
+        (dblclick)="navigateToDayView(day)">
+        <span>{{ day | date: 'd' }}</span>
+        <div class="calendar-events">
+          <div *ngFor="let event of getEvents(day)" class="calendar-event">
+            <div>{{ event.time }} - {{ event.title }}</div>
+            <div class="event-actions">
+              <button class="edit-button" (click)="editEvent(day, getEvents(day).indexOf(event))">Edit</button>
+              <button class="delete-button" (click)="deleteEvent(day, getEvents(day).indexOf(event))">Delete</button>
+            </div>
+            <!-- Hover Form -->
+            <div class="event-hover-form">
+              <h3>{{ event.title }}</h3>
+              <p>{{ event.time }}</p>
+              <p *ngIf="event.description">{{ event.description }}</p>
+              <a *ngIf="event.attachment" [href]="getAttachmentUrl(event.attachment)" target="_blank">
+                Attachment</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+   
+    <div *ngIf="selectedDate && showTimeSlots && (currentView === 'day' || currentView === 'week')"
+      class="time-slot-section">
+      <h2>Time Slots for {{ selectedDate | date: 'MMMM d, yyyy' }}</h2>
+      <div class="time-slot-grid">
+        <div class="time-slot" *ngFor="let slot of timeSlots">
+          <div class="slot-time">{{ slot.time }}</div>
+          <div class="slot-events">
+            <div *ngFor="let event of getEventsByTime(selectedDate, slot.time)" class="event"
+              (mouseenter)="showEventDetails(event)" (mouseleave)="hideEventDetails()">
+              <span class="event-title">{{ event.title }}</span>
+              <p *ngIf="event.description" class="event-description">{{ event.description }}</p>
+              <a *ngIf="event.attachment" [href]="getAttachmentUrl(event.attachment)" target="_blank"
+                class="event-attachment">View Attachment</a>
+              <div class="event-action">
+                <button class="edit-button"
+                  (click)="deleteEvent(selectedDate, getEventsByTime(selectedDate, slot.time).indexOf(event))">Delete</button>
+                <button class="delete-button"
+                  (click)="editEvent(selectedDate, getEventsByTime(selectedDate, slot.time).indexOf(event))">Edit</button>
+              </div>
+            </div>
+          </div>
+          <button class="add-event-button" (click)="openEventModal(slot.time)">Add Appointment</button>
+        </div>
+      </div>
+    </div>
+
+    
+    <div class="modal" *ngIf="modalVisible">
+      <div class="modal-content">
+        <span class="close" (click)="closeModal()">&times;</span>
+        <h2>{{ editMode ? 'Edit Event' : 'Add Appointment' }} on {{ selectedDate | date: 'MMMM d, yyyy' }}</h2>
+        <form (ngSubmit)="addEvent()" class="form">
+          <label>
+            Time:
+            <select [(ngModel)]="selectedTime" name="time" required>
+              <option *ngFor="let slot of timeSlots" [value]="slot.time">{{ slot.time }}</option>
+            </select>
+          </label>
+          <label>
+            Title:
+            <input type="text" [(ngModel)]="newEventTitle" name="title" required />
+          </label>
+          <label class="description">
+            Description:
+            <textarea [(ngModel)]="newEventDescription" name="description"></textarea>
+          </label>
+          <label>
+            Attachment:
+            <input type="file" (change)="handleFileInput($event)" />
+          </label>
+          <div *ngIf="attachmentFile">
+            <p>Attached File:</p>
+            <a [href]="getAttachmentUrl(attachmentFile)" target="_blank">{{ attachmentFile.name }}</a>
+          </div>
+          <button type="submit">{{ editMode ? 'Save Changes' : 'Add Appointment' }}</button>
+        </form>
+      </div>
+    </div> 
+
+   
+    <div *ngIf="currentView === 'week'" class="calendar-week-view">
+      <div class="calendar-grid">
+        <div class="calendar-weekday" *ngFor="let weekday of weekdays">{{ weekday }}</div>
+        <div class="calendar-day" *ngFor="let day of eachWeekDays()"
+          [ngClass]="{'calendar-day': true, 'today': isToday(day), 'selected': isSelected(day)}"
+          (click)="selectDate(day)" (dblclick)="navigateToDayView(day)">
+          <span>{{ day | date: 'd' }}</span>
+          <div class="calendar-events">
+            <div *ngFor="let event of getEvents(day)" class="calendar-event">
+              <div>{{ event.time }} - {{ event.title }}</div>
+              <div class="event-actions">
+                <button class="edit-button" (click)="editEvent(day, getEvents(day).indexOf(event))">Edit</button>
+                <button class="delete-button" (click)="deleteEvent(day, getEvents(day).indexOf(event))">Delete</button>
+              </div>
+              <!-- Hover Form -->
+              <div class="event-hover-form">
+                <h3>{{ event.title }}</h3>
+                <p>{{ event.time }}</p>
+                <p *ngIf="event.description">{{ event.description }}</p>
+                <a *ngIf="event.attachment" [href]="getAttachmentUrl(event.attachment)" target="_blank">
+                  Attachment</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+     
+      <div *ngIf="selectedDate && showTimeSlots && currentView === 'week'" class="time-slot-section">
+        
+      </div>
+    </div>
+
+   
+    <div *ngIf="currentView === 'year'" class="calendar-year-grid">
+      <div class="calendar-month" *ngFor="let month of months">
+        <div class="calendar-month-name">{{ month | date: 'MMMM' }}</div>
+        <div class="calendar-month-days">
+          <div class="calendar-month-day" *ngFor="let day of getDaysInMonth(month)"
+            [ngClass]="{'calendar-day': true, 'today': isToday(day), 'selected': isSelected(day)}"
+            (dblclick)="navigateToDayView(day)">
+            {{ day | date: 'd' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
